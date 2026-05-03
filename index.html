@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TalentSpot — Find & Be Found</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════
+       LOGIN PAGE
+  ═══════════════════════════════════════ -->
+  <div id="loginPage" class="login-page">
+    <div class="login-visual">
+      <div class="login-visual-content">
+        <div class="logo-mark">T</div>
+        <h1>TalentSpot</h1>
+        <p>Where opportunity meets ambition.</p>
+        <div class="floating-tags">
+          <span>Software Engineer</span>
+          <span>Designer</span>
+          <span>Data Analyst</span>
+          <span>Project Manager</span>
+          <span>Marketing</span>
+          <span>DevOps</span>
+        </div>
+      </div>
+      <div class="visual-bg-circles">
+        <div class="circle c1"></div>
+        <div class="circle c2"></div>
+        <div class="circle c3"></div>
+      </div>
+    </div>
+
+    <div class="login-form-panel">
+      <div class="login-form-wrap">
+        <div class="login-badge">Open to opportunities?</div>
+        <h2>Let's get started</h2>
+        <p class="login-sub">Enter your name to continue to the portal. No password needed.</p>
+
+        <div class="input-group">
+          <i class="fas fa-user"></i>
+          <input type="text" id="username" placeholder="Your full name" autocomplete="off">
+        </div>
+
+        <button class="btn-primary" onclick="login()">
+          <span>Enter Portal</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+
+        <p class="login-note">
+          <i class="fas fa-shield-halved"></i>
+          Your name is only used to personalise your experience.
+        </p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════
+       MAIN APP
+  ═══════════════════════════════════════ -->
+  <div id="mainApp" class="hidden">
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <span class="nav-logo">T</span>
+        <span class="nav-name">TalentSpot</span>
+      </div>
+      <div class="nav-right">
+        <span id="userGreeting" class="user-greeting"></span>
+        <button class="btn-logout" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </nav>
+
+    <!-- HERO STRIP -->
+    <div class="hero-strip">
+      <div class="hero-text">
+        <h2 id="heroGreeting">Good day! 👋</h2>
+        <p>Browse talent or add yourself to the board.</p>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-pill" id="totalCount">
+          <i class="fas fa-users"></i>
+          <span>— Profiles</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs-bar">
+      <button class="tab active" onclick="switchTab('browse')" id="tab-browse">
+        <i class="fas fa-search"></i> Browse Talent
+      </button>
+      <button class="tab" onclick="switchTab('register')" id="tab-register">
+        <i class="fas fa-plus-circle"></i> Post My Profile
+      </button>
+    </div>
+
+    <div class="main-content">
+
+      <!-- ─── BROWSE PANEL ─── -->
+      <div id="browsePanel">
+
+        <!-- SEARCH & FILTERS -->
+        <div class="filter-bar">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Search by name, skill, role…" oninput="applyFilters()">
+          </div>
+
+          <div class="filter-group">
+            <select id="roleFilter" onchange="applyFilters()">
+              <option value="">All Roles</option>
+              <option value="Engineering">Engineering</option>
+              <option value="Design">Design</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Finance">Finance</option>
+              <option value="Sales">Sales</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Education">Education</option>
+              <option value="Operations">Operations</option>
+              <option value="Other">Other</option>
+            </select>
+
+            <select id="expFilter" onchange="applyFilters()">
+              <option value="">Any Experience</option>
+              <option value="fresher">Fresher (0-1 yr)</option>
+              <option value="junior">Junior (1-3 yrs)</option>
+              <option value="mid">Mid-level (3-6 yrs)</option>
+              <option value="senior">Senior (6+ yrs)</option>
+            </select>
+
+            <button class="btn-clear-filter" onclick="clearFilters()">
+              <i class="fas fa-times"></i> Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- RESULTS COUNT -->
+        <div class="results-info" id="resultsInfo">Showing all profiles</div>
+
+        <!-- CANDIDATE GRID -->
+        <div class="candidate-grid" id="candidateGrid">
+          <div class="empty-state" id="emptyState">
+            <i class="fas fa-binoculars"></i>
+            <p>No profiles yet. Be the first!</p>
+            <button class="btn-secondary" onclick="switchTab('register')">Add My Profile</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ─── REGISTER PANEL ─── -->
+      <div id="registerPanel" class="hidden">
+        <div class="register-card">
+          <div class="register-header">
+            <h3><i class="fas fa-id-card"></i> Post Your Profile</h3>
+            <p>Let employers find you. Fill in your details below.</p>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Full Name <span class="req">*</span></label>
+              <input type="text" id="reg_name" placeholder="e.g. Priya Sharma">
+            </div>
+
+            <div class="form-group">
+              <label>Job Title / Role <span class="req">*</span></label>
+              <input type="text" id="reg_role" placeholder="e.g. Frontend Developer">
+            </div>
+
+            <div class="form-group">
+              <label>Department / Category <span class="req">*</span></label>
+              <select id="reg_category">
+                <option value="">Select category</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Design">Design</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Finance">Finance</option>
+                <option value="Sales">Sales</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Education">Education</option>
+                <option value="Operations">Operations</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Experience Level <span class="req">*</span></label>
+              <select id="reg_exp">
+                <option value="">Select level</option>
+                <option value="fresher">Fresher (0-1 yr)</option>
+                <option value="junior">Junior (1-3 yrs)</option>
+                <option value="mid">Mid-level (3-6 yrs)</option>
+                <option value="senior">Senior (6+ yrs)</option>
+              </select>
+            </div>
+
+            <div class="form-group full-width">
+              <label>Qualifications <span class="req">*</span></label>
+              <input type="text" id="reg_qual" placeholder="e.g. B.Tech Computer Science, VTU 2023">
+            </div>
+
+            <div class="form-group full-width">
+              <label>Skills (comma separated) <span class="req">*</span></label>
+              <input type="text" id="reg_skills" placeholder="e.g. React, Node.js, MongoDB, Figma">
+            </div>
+
+            <div class="form-group full-width">
+              <label>About You (1-2 lines) <span class="req">*</span></label>
+              <textarea id="reg_bio" rows="3" placeholder="Brief intro: what you do, what you're looking for…"></textarea>
+            </div>
+
+            <div class="form-group full-width">
+              <label>Contact / Email</label>
+              <input type="text" id="reg_contact" placeholder="e.g. priya@email.com or +91 9876543210">
+            </div>
+
+            <div class="form-group full-width location-row">
+              <label>Your Location <span class="req">*</span></label>
+              <div class="location-input-wrap">
+                <input type="text" id="reg_location" placeholder="Click button to detect location" readonly>
+                <button class="btn-location" onclick="getLocation()">
+                  <i class="fas fa-map-marker-alt"></i> Detect GPS
+                </button>
+              </div>
+              <span class="location-hint" id="locationHint"></span>
+            </div>
+          </div>
+
+          <button class="btn-submit" onclick="submitProfile()">
+            <i class="fas fa-paper-plane"></i> Post My Profile
+          </button>
+
+        </div>
+      </div>
+
+    </div><!-- /main-content -->
+
+    <!-- MAP MODAL -->
+    <div id="mapModal" class="modal-overlay hidden" onclick="closeMap(event)">
+      <div class="modal-box">
+        <div class="modal-header">
+          <span id="mapModalName">Location</span>
+          <button onclick="closeMapDirect()"><i class="fas fa-times"></i></button>
+        </div>
+        <iframe id="mapFrame" width="100%" height="350" style="border:0;" loading="lazy"></iframe>
+      </div>
+    </div>
+
+    <!-- PROFILE DETAIL MODAL -->
+    <div id="profileModal" class="modal-overlay hidden" onclick="closeProfile(event)">
+      <div class="modal-box profile-modal-box">
+        <button class="modal-close-btn" onclick="closeProfileDirect()"><i class="fas fa-times"></i></button>
+        <div id="profileModalContent"></div>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast hidden"></div>
+
+  </div><!-- /mainApp -->
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
