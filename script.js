@@ -15,15 +15,16 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ══════════════════════════════════════════
-//  🔴 PASTE YOUR FIREBASE CONFIG HERE
+//  FIREBASE CONFIG
 // ══════════════════════════════════════════
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyC1IpincQdy4fml8_MOk3sfyjba9_cXVMw",
+  authDomain: "talentspot-425bf.firebaseapp.com",
+  projectId: "talentspot-425bf",
+  storageBucket: "talentspot-425bf.firebasestorage.app",
+  messagingSenderId: "417253968541",
+  appId: "1:417253968541:web:24520203c35595b325a274",
+  measurementId: "G-F84THZQVFM"
 };
 
 // ── Init Firebase ─────────────────────────
