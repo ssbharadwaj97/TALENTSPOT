@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════
-//   TALENTSPOT v2 — script.js
+//   TALENTSPOT — script.js
 // ═══════════════════════════════════════════
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -13,7 +13,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ══════════════════════════════════════════
-//   🔴 YOUR FIREBASE CONFIG
+//   YOUR FIREBASE CONFIG
 // ══════════════════════════════════════════
 const firebaseConfig = {
   apiKey: "AIzaSyC1IpincQdy4fml8_MOk3sfyjba9_cXVMw",
@@ -28,17 +28,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
-// ── State ──────────────────────────────────
-let currentUser  = "";
+// ── State ─────────────────────────────────
+let currentUser   = "";
 let currentCoords = "";
 let locationText  = "";
 let allProfiles   = [];
 let toastTimer;
 
-// ── Avatar colours ──────────────────────────
+// ── Avatar colours (warm palette) ─────────
 const PALETTE = [
-  "#6ee7b7","#818cf8","#f9a8d4","#fbbf24",
-  "#34d399","#a78bfa","#60a5fa","#f87171"
+  "#c94a1e","#e8813a","#1c7c54","#0d8c8c",
+  "#7c3aed","#d97706","#0f766e","#be185d"
 ];
 
 function avatarColor(name) {
@@ -51,10 +51,6 @@ function initials(name) {
   return name.trim().split(" ").slice(0, 2)
     .map(w => w[0]?.toUpperCase() || "")
     .join("");
-}
-
-function expLabel(v) {
-  return { fresher:"Fresher", junior:"Junior", mid:"Mid-level", senior:"Senior" }[v] || v || "";
 }
 
 function timeGreeting() {
@@ -77,7 +73,9 @@ window.login = function () {
 
   document.getElementById("loginPage").style.display = "none";
   document.getElementById("mainApp").classList.remove("hidden");
-  document.getElementById("navUser").textContent = `Hi, ${first}`;
+
+  // Personalise UI
+  document.getElementById("navUser").textContent = `Hi, ${first} 👋`;
   document.getElementById("postGreet").textContent =
     `${timeGreeting()}, ${first}! Let's get you visible.`;
   document.getElementById("reg_name").value = name;
@@ -88,14 +86,14 @@ window.login = function () {
 
 
 // ═══════════════════════════════════════════
-//   GO HOME (logo click)
+//   GO HOME — logo click
 // ═══════════════════════════════════════════
 window.goHome = function () {
   document.getElementById("mainApp").classList.add("hidden");
   document.getElementById("loginPage").style.display = "flex";
   document.getElementById("username").value = "";
   currentUser = ""; currentCoords = ""; locationText = "";
-  allProfiles = [];
+  allProfiles  = [];
 };
 
 
@@ -123,15 +121,13 @@ window.switchTab = function (tab) {
 
 
 // ═══════════════════════════════════════════
-//   SKILL PREVIEW (live chips)
+//   LIVE SKILL CHIPS PREVIEW
 // ═══════════════════════════════════════════
 window.previewSkills = function () {
   const raw    = document.getElementById("reg_skills").value;
   const skills = raw.split(",").map(s => s.trim()).filter(Boolean);
-  const wrap   = document.getElementById("skillPreview");
-  wrap.innerHTML = skills
-    .map(s => `<span class="skill-chip">${s}</span>`)
-    .join("");
+  document.getElementById("skillPreview").innerHTML =
+    skills.map(s => `<span class="skill-chip">${s}</span>`).join("");
 };
 
 
@@ -143,7 +139,8 @@ window.getLocation = function () {
   const status = document.getElementById("gpsStatus");
 
   if (!navigator.geolocation) {
-    showToast("Geolocation not supported", "error"); return;
+    showToast("Geolocation not supported by your browser", "error");
+    return;
   }
 
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting…';
@@ -167,13 +164,13 @@ window.getLocation = function () {
       }
 
       document.getElementById("reg_location").value = locationText;
-      status.textContent = `✓ Coordinates captured`;
+      status.textContent = `✓ Location captured (${currentCoords})`;
       btn.innerHTML = '<i class="fas fa-check"></i> Detected';
-      btn.classList.add("detected");
+      btn.classList.add("done");
       btn.disabled = false;
     },
     () => {
-      showToast("Couldn't get location — please allow access", "error");
+      showToast("Couldn't get location — please allow location access", "error");
       btn.innerHTML = '<i class="fas fa-crosshairs"></i> Detect';
       btn.disabled = false;
     }
@@ -187,18 +184,18 @@ window.getLocation = function () {
 window.submitProfile = async function () {
   const name     = document.getElementById("reg_name").value.trim();
   const role     = document.getElementById("reg_role").value.trim();
-  const skillsRaw = document.getElementById("reg_skills").value.trim();
+  const skillsRaw= document.getElementById("reg_skills").value.trim();
   const contact  = document.getElementById("reg_contact").value.trim();
   const location = document.getElementById("reg_location").value;
 
   if (!name || !role || !skillsRaw || !location) {
-    showToast("Please fill all required fields + detect location", "error");
+    showToast("Please fill all required fields and detect your location", "error");
     return;
   }
 
   const skills = skillsRaw.split(",").map(s => s.trim()).filter(Boolean);
+  const btn    = document.getElementById("submitBtn");
 
-  const btn = document.getElementById("submitBtn");
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting…';
 
@@ -210,21 +207,21 @@ window.submitProfile = async function () {
       timestamp: Date.now()
     });
 
-    showToast("Profile posted! You're live 🎉", "success");
+    showToast("Profile posted! You're now visible to employers 🎉", "success");
     resetForm();
-    await loadProfiles();       // refresh data first
-    switchTab("browse");        // then switch tab
+    await loadProfiles();   // refresh list first
+    switchTab("browse");    // then switch to browse
   } catch (err) {
     console.error(err);
-    showToast("Failed to post. Check Firebase config.", "error");
+    showToast("Failed to post — check Firebase config.", "error");
   } finally {
     btn.disabled = false;
-    btn.innerHTML = 'Post My Profile &nbsp;<i class="fas fa-arrow-right"></i>';
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Post My Profile';
   }
 };
 
 function resetForm() {
-  ["reg_role","reg_skills","reg_contact","reg_location"].forEach(id => {
+  ["reg_role", "reg_skills", "reg_contact", "reg_location"].forEach(id => {
     document.getElementById(id).value = "";
   });
   document.getElementById("reg_name").value = currentUser;
@@ -235,7 +232,7 @@ function resetForm() {
   const btn = document.getElementById("gpsBtn");
   if (btn) {
     btn.innerHTML = '<i class="fas fa-crosshairs"></i> Detect';
-    btn.classList.remove("detected");
+    btn.classList.remove("done");
     btn.disabled = false;
   }
 }
@@ -246,13 +243,13 @@ function resetForm() {
 // ═══════════════════════════════════════════
 async function loadProfiles() {
   try {
-    const q    = query(collection(db, "talentspot_profiles"), orderBy("timestamp","desc"));
+    const q    = query(collection(db, "talentspot_profiles"), orderBy("timestamp", "desc"));
     const snap = await getDocs(q);
     allProfiles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     updateBadge(allProfiles.length);
     renderProfiles(allProfiles);
   } catch (err) {
-    console.error(err);
+    console.error("Load error:", err);
   }
 }
 
@@ -264,15 +261,16 @@ function updateBadge(n) {
 
 
 // ═══════════════════════════════════════════
-//   RENDER
+//   RENDER PROFILES
 // ═══════════════════════════════════════════
 function renderProfiles(list) {
   const grid  = document.getElementById("candidateGrid");
   const empty = document.getElementById("emptyState");
   const count = document.getElementById("resultCount");
 
-  // Remove old cards (keep empty state)
-  Array.from(grid.children).forEach(c => { if (c.id !== "emptyState") c.remove(); });
+  Array.from(grid.children).forEach(c => {
+    if (c.id !== "emptyState") c.remove();
+  });
 
   count.textContent = list.length
     ? `${list.length} profile${list.length !== 1 ? "s" : ""}`
@@ -294,16 +292,16 @@ function renderProfiles(list) {
     card.innerHTML = `
       <div class="cc-top">
         <div class="cc-avatar" style="background:${color}">${abbr}</div>
-        <span class="cc-badge">Open</span>
+        <span class="open-badge">Open</span>
       </div>
       <div class="cc-name">${p.name || "—"}</div>
       <div class="cc-role">${p.role || "—"}</div>
       <div class="cc-skills">
         ${skills.map(s => `<span class="cc-skill">${s}</span>`).join("")}
-        ${more > 0 ? `<span class="cc-skill">+${more}</span>` : ""}
+        ${more > 0 ? `<span class="cc-skill">+${more} more</span>` : ""}
       </div>
       <div class="cc-foot">
-        <span class="cc-loc"><i class="fas fa-map-marker-alt"></i>${p.location || "—"}</span>
+        <span class="cc-loc"><i class="fas fa-map-marker-alt"></i> ${p.location || "—"}</span>
       </div>
     `;
 
@@ -321,7 +319,7 @@ window.applyFilters = function () {
   const exp = document.getElementById("expFilter").value;
 
   const filtered = allProfiles.filter(p => {
-    const hay = [p.name, p.role, ...(p.skills||[]), p.location].join(" ").toLowerCase();
+    const hay = [p.name, p.role, ...(p.skills || []), p.location].join(" ").toLowerCase();
     return (!q || hay.includes(q)) && (!exp || p.exp === exp);
   });
 
@@ -348,24 +346,25 @@ function openProfile(p) {
        </button>`
     : "";
 
-  const contactLine = p.contact
+  const contactHtml = p.contact
     ? `<a class="pm-contact" href="mailto:${p.contact}">
          <i class="fas fa-envelope"></i> ${p.contact}
        </a>`
-    : `<span style="color:var(--text3);font-size:.85rem">Not provided</span>`;
+    : `<span style="color:var(--ink3);font-size:.85rem">Not provided</span>`;
 
   document.getElementById("profileContent").innerHTML = `
     <div class="pm-inner">
       <div class="pm-avatar" style="background:${color}">${abbr}</div>
       <div class="pm-name">${p.name || "—"}</div>
       <div class="pm-role">${p.role || "—"}</div>
-      <span class="cc-badge" style="display:inline-flex">Open to Work</span>
+      <span class="open-badge">Open to Work</span>
 
       <hr class="pm-divider">
 
       <div class="pm-label">Skills</div>
       <div class="pm-chips">
-        ${(p.skills||[]).map(s => `<span class="pm-chip">${s}</span>`).join("") || '<span style="color:var(--text3)">—</span>'}
+        ${(p.skills || []).map(s => `<span class="pm-chip">${s}</span>`).join("")
+          || '<span style="color:var(--ink3)">—</span>'}
       </div>
 
       <div class="pm-label">Location</div>
@@ -375,7 +374,7 @@ function openProfile(p) {
       <hr class="pm-divider">
 
       <div class="pm-label">Contact</div>
-      ${contactLine}
+      ${contactHtml}
     </div>
   `;
 
@@ -417,11 +416,10 @@ function showToast(msg, type = "") {
   t.textContent = msg;
   t.className = `toast ${type} show`;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3400);
 }
 
-
-// ── Escape closes modals ───────────────────
+// Escape key closes modals
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") { closeMapDirect(); closeProfileDirect(); }
 });
