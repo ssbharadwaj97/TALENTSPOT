@@ -1,9 +1,7 @@
 // ═══════════════════════════════════════════
-//   TALENTSPOT — Job Finder Portal Script
-//   Firebase + Vanilla JS
+//   TALENTSPOT v2 — script.js
 // ═══════════════════════════════════════════
 
-// ── Firebase Imports ──────────────────────
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getFirestore,
@@ -15,7 +13,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ══════════════════════════════════════════
-//  FIREBASE CONFIG
+//   🔴 YOUR FIREBASE CONFIG
 // ══════════════════════════════════════════
 const firebaseConfig = {
   apiKey: "AIzaSyC1IpincQdy4fml8_MOk3sfyjba9_cXVMw",
@@ -27,43 +25,38 @@ const firebaseConfig = {
   measurementId: "G-F84THZQVFM"
 };
 
-// ── Init Firebase ─────────────────────────
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
-// ── State ─────────────────────────────────
-let currentCoords  = "";
-let locationText   = "";
-let allProfiles    = [];   // cached from Firestore
-let currentUser    = "";
+// ── State ──────────────────────────────────
+let currentUser  = "";
+let currentCoords = "";
+let locationText  = "";
+let allProfiles   = [];
+let toastTimer;
 
-// ── Avatar colour palette ─────────────────
-const COLORS = [
-  "#c94a1e","#e8813a","#1c7c54","#0d8c8c",
-  "#7c3aed","#d97706","#0f766e","#be185d"
+// ── Avatar colours ──────────────────────────
+const PALETTE = [
+  "#6ee7b7","#818cf8","#f9a8d4","#fbbf24",
+  "#34d399","#a78bfa","#60a5fa","#f87171"
 ];
 
 function avatarColor(name) {
   let n = 0;
   for (const c of name) n += c.charCodeAt(0);
-  return COLORS[n % COLORS.length];
+  return PALETTE[n % PALETTE.length];
 }
 
 function initials(name) {
-  return name.trim().split(" ").slice(0, 2).map(w => w[0].toUpperCase()).join("");
+  return name.trim().split(" ").slice(0, 2)
+    .map(w => w[0]?.toUpperCase() || "")
+    .join("");
 }
 
-function expLabel(val) {
-  const map = {
-    fresher: "Fresher",
-    junior:  "Junior",
-    mid:     "Mid-level",
-    senior:  "Senior"
-  };
-  return map[val] || val;
+function expLabel(v) {
+  return { fresher:"Fresher", junior:"Junior", mid:"Mid-level", senior:"Senior" }[v] || v || "";
 }
 
-// ── Greeting based on time of day ─────────
 function timeGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -71,114 +64,122 @@ function timeGreeting() {
   return "Good evening";
 }
 
+
 // ═══════════════════════════════════════════
 //   LOGIN
 // ═══════════════════════════════════════════
 window.login = function () {
-  const user = document.getElementById("username").value.trim();
-  if (!user) {
-    showToast("Please enter your name to continue", "error");
-    return;
-  }
-  currentUser = user;
+  const name = document.getElementById("username").value.trim();
+  if (!name) { showToast("Please enter your name", "error"); return; }
+
+  currentUser = name;
+  const first = name.split(" ")[0];
 
   document.getElementById("loginPage").style.display = "none";
   document.getElementById("mainApp").classList.remove("hidden");
+  document.getElementById("navUser").textContent = `Hi, ${first}`;
+  document.getElementById("postGreet").textContent =
+    `${timeGreeting()}, ${first}! Let's get you visible.`;
+  document.getElementById("reg_name").value = name;
 
-  const greeting = `${timeGreeting()}, ${user.split(" ")[0]}! 👋`;
-  document.getElementById("heroGreeting").textContent = greeting;
-  document.getElementById("userGreeting").textContent = `Hi, ${user.split(" ")[0]}`;
-
-  // Pre-fill name in register form
-  document.getElementById("reg_name").value = user;
-
+  switchTab("post");
   loadProfiles();
 };
 
-// Allow pressing Enter on login input
-document.getElementById("username")?.addEventListener("keydown", e => {
-  if (e.key === "Enter") window.login();
-});
 
 // ═══════════════════════════════════════════
-//   LOGOUT
+//   GO HOME (logo click)
 // ═══════════════════════════════════════════
-window.logout = function () {
+window.goHome = function () {
   document.getElementById("mainApp").classList.add("hidden");
   document.getElementById("loginPage").style.display = "flex";
   document.getElementById("username").value = "";
-  currentUser = "";
-  currentCoords = "";
+  currentUser = ""; currentCoords = ""; locationText = "";
+  allProfiles = [];
 };
+
 
 // ═══════════════════════════════════════════
 //   TABS
 // ═══════════════════════════════════════════
 window.switchTab = function (tab) {
-  const browsePanel   = document.getElementById("browsePanel");
-  const registerPanel = document.getElementById("registerPanel");
-  const tabBrowse     = document.getElementById("tab-browse");
-  const tabRegister   = document.getElementById("tab-register");
+  const postPanel   = document.getElementById("postPanel");
+  const browsePanel = document.getElementById("browsePanel");
+  const tabPost     = document.getElementById("tab-post");
+  const tabBrowse   = document.getElementById("tab-browse");
 
-  if (tab === "browse") {
-    browsePanel.classList.remove("hidden");
-    registerPanel.classList.add("hidden");
-    tabBrowse.classList.add("active");
-    tabRegister.classList.remove("active");
-  } else {
+  if (tab === "post") {
+    postPanel.classList.remove("hidden");
     browsePanel.classList.add("hidden");
-    registerPanel.classList.remove("hidden");
+    tabPost.classList.add("active");
     tabBrowse.classList.remove("active");
-    tabRegister.classList.add("active");
+  } else {
+    postPanel.classList.add("hidden");
+    browsePanel.classList.remove("hidden");
+    tabPost.classList.remove("active");
+    tabBrowse.classList.add("active");
   }
 };
 
+
 // ═══════════════════════════════════════════
-//   GET LOCATION (GPS)
+//   SKILL PREVIEW (live chips)
+// ═══════════════════════════════════════════
+window.previewSkills = function () {
+  const raw    = document.getElementById("reg_skills").value;
+  const skills = raw.split(",").map(s => s.trim()).filter(Boolean);
+  const wrap   = document.getElementById("skillPreview");
+  wrap.innerHTML = skills
+    .map(s => `<span class="skill-chip">${s}</span>`)
+    .join("");
+};
+
+
+// ═══════════════════════════════════════════
+//   GPS LOCATION
 // ═══════════════════════════════════════════
 window.getLocation = function () {
-  const hint = document.getElementById("locationHint");
-  const btn  = document.querySelector(".btn-location");
+  const btn    = document.getElementById("gpsBtn");
+  const status = document.getElementById("gpsStatus");
 
   if (!navigator.geolocation) {
-    showToast("Geolocation not supported by your browser.", "error");
-    return;
+    showToast("Geolocation not supported", "error"); return;
   }
 
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting…';
   btn.disabled  = true;
+  status.textContent = "";
 
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
+      const lat = pos.coords.latitude.toFixed(5);
+      const lon = pos.coords.longitude.toFixed(5);
       currentCoords = `${lat},${lon}`;
 
-      // Reverse geocode using free Nominatim API
       try {
         const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
         const data = await res.json();
-        const addr = data.address;
-        locationText = [addr.city || addr.town || addr.village, addr.state, addr.country]
+        const a    = data.address;
+        locationText = [a.city || a.town || a.village, a.state, a.country]
           .filter(Boolean).join(", ");
       } catch {
         locationText = currentCoords;
       }
 
       document.getElementById("reg_location").value = locationText;
-      hint.textContent = `✓ Location captured (${currentCoords})`;
-
+      status.textContent = `✓ Coordinates captured`;
       btn.innerHTML = '<i class="fas fa-check"></i> Detected';
-      btn.style.background = "var(--green)";
+      btn.classList.add("detected");
       btn.disabled = false;
     },
-    (err) => {
-      showToast("Could not get location. Please allow location access.", "error");
-      btn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Detect GPS';
+    () => {
+      showToast("Couldn't get location — please allow access", "error");
+      btn.innerHTML = '<i class="fas fa-crosshairs"></i> Detect';
       btn.disabled = false;
     }
   );
 };
+
 
 // ═══════════════════════════════════════════
 //   SUBMIT PROFILE
@@ -186,151 +187,123 @@ window.getLocation = function () {
 window.submitProfile = async function () {
   const name     = document.getElementById("reg_name").value.trim();
   const role     = document.getElementById("reg_role").value.trim();
-  const category = document.getElementById("reg_category").value;
-  const exp      = document.getElementById("reg_exp").value;
-  const qual     = document.getElementById("reg_qual").value.trim();
-  const skills   = document.getElementById("reg_skills").value.trim();
-  const bio      = document.getElementById("reg_bio").value.trim();
+  const skillsRaw = document.getElementById("reg_skills").value.trim();
   const contact  = document.getElementById("reg_contact").value.trim();
   const location = document.getElementById("reg_location").value;
 
-  if (!name || !role || !category || !exp || !qual || !skills || !bio || !location) {
-    showToast("Please fill all required fields (including GPS location)", "error");
+  if (!name || !role || !skillsRaw || !location) {
+    showToast("Please fill all required fields + detect location", "error");
     return;
   }
 
-  const skillArray = skills.split(",").map(s => s.trim()).filter(Boolean);
+  const skills = skillsRaw.split(",").map(s => s.trim()).filter(Boolean);
 
-  const btn = document.querySelector(".btn-submit");
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting…';
+  const btn = document.getElementById("submitBtn");
   btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting…';
 
   try {
     await addDoc(collection(db, "talentspot_profiles"), {
-      name,
-      role,
-      category,
-      exp,
-      qual,
-      skills: skillArray,
-      bio,
-      contact,
+      name, role, skills, contact,
       location: locationText || location,
-      coords: currentCoords,
+      coords:   currentCoords,
       timestamp: Date.now()
     });
 
-    showToast("Profile posted! You're now visible to employers 🎉", "success");
-    resetRegisterForm();
-    switchTab("browse");
-    loadProfiles();
+    showToast("Profile posted! You're live 🎉", "success");
+    resetForm();
+    await loadProfiles();       // refresh data first
+    switchTab("browse");        // then switch tab
   } catch (err) {
     console.error(err);
-    showToast("Failed to post profile. Check Firebase config.", "error");
+    showToast("Failed to post. Check Firebase config.", "error");
   } finally {
-    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Post My Profile';
     btn.disabled = false;
+    btn.innerHTML = 'Post My Profile &nbsp;<i class="fas fa-arrow-right"></i>';
   }
 };
 
-function resetRegisterForm() {
-  ["reg_role","reg_qual","reg_skills","reg_bio","reg_contact","reg_location"].forEach(id => {
+function resetForm() {
+  ["reg_role","reg_skills","reg_contact","reg_location"].forEach(id => {
     document.getElementById(id).value = "";
   });
-  document.getElementById("reg_category").value = "";
-  document.getElementById("reg_exp").value = "";
   document.getElementById("reg_name").value = currentUser;
-  document.getElementById("locationHint").textContent = "";
-  currentCoords = "";
-  locationText  = "";
+  document.getElementById("skillPreview").innerHTML = "";
+  document.getElementById("gpsStatus").textContent = "";
+  currentCoords = ""; locationText = "";
 
-  const btn = document.querySelector(".btn-location");
+  const btn = document.getElementById("gpsBtn");
   if (btn) {
-    btn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Detect GPS';
-    btn.style.background = "";
+    btn.innerHTML = '<i class="fas fa-crosshairs"></i> Detect';
+    btn.classList.remove("detected");
+    btn.disabled = false;
   }
 }
 
+
 // ═══════════════════════════════════════════
-//   LOAD PROFILES FROM FIRESTORE
+//   LOAD PROFILES
 // ═══════════════════════════════════════════
 async function loadProfiles() {
   try {
-    const q     = query(collection(db, "talentspot_profiles"), orderBy("timestamp", "desc"));
-    const snap  = await getDocs(q);
-    allProfiles = [];
-
-    snap.forEach(doc => {
-      allProfiles.push({ id: doc.id, ...doc.data() });
-    });
-
-    updateCount(allProfiles.length);
+    const q    = query(collection(db, "talentspot_profiles"), orderBy("timestamp","desc"));
+    const snap = await getDocs(q);
+    allProfiles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    updateBadge(allProfiles.length);
     renderProfiles(allProfiles);
   } catch (err) {
-    console.error("Load error:", err);
-    showToast("Failed to load profiles. Check Firebase config.", "error");
+    console.error(err);
   }
 }
 
-function updateCount(n) {
-  document.getElementById("totalCount").innerHTML =
-    `<i class="fas fa-users"></i> <span>${n} Profile${n !== 1 ? "s" : ""}</span>`;
+function updateBadge(n) {
+  document.getElementById("navCount").textContent = n;
+  document.getElementById("browseSubtitle").textContent =
+    `${n} profile${n !== 1 ? "s" : ""} open to opportunities`;
 }
 
+
 // ═══════════════════════════════════════════
-//   RENDER PROFILES
+//   RENDER
 // ═══════════════════════════════════════════
-function renderProfiles(profiles) {
-  const grid     = document.getElementById("candidateGrid");
-  const empty    = document.getElementById("emptyState");
-  const resInfo  = document.getElementById("resultsInfo");
+function renderProfiles(list) {
+  const grid  = document.getElementById("candidateGrid");
+  const empty = document.getElementById("emptyState");
+  const count = document.getElementById("resultCount");
 
-  // Clear existing cards but keep empty state element
-  Array.from(grid.children).forEach(child => {
-    if (child.id !== "emptyState") child.remove();
-  });
+  // Remove old cards (keep empty state)
+  Array.from(grid.children).forEach(c => { if (c.id !== "emptyState") c.remove(); });
 
-  resInfo.textContent = profiles.length
-    ? `Showing ${profiles.length} profile${profiles.length !== 1 ? "s" : ""}`
-    : "No profiles match your search";
+  count.textContent = list.length
+    ? `${list.length} profile${list.length !== 1 ? "s" : ""}`
+    : "No matches";
 
-  if (profiles.length === 0) {
-    empty.classList.remove("hidden");
-    return;
-  }
-
+  if (!list.length) { empty.classList.remove("hidden"); return; }
   empty.classList.add("hidden");
 
-  profiles.forEach((p, i) => {
-    const card = document.createElement("div");
-    card.className = "candidate-card";
-    card.style.animationDelay = `${i * 0.05}s`;
+  list.forEach((p, i) => {
+    const color  = avatarColor(p.name || "?");
+    const abbr   = initials(p.name || "?");
+    const skills = (p.skills || []).slice(0, 4);
+    const more   = (p.skills || []).length - 4;
 
-    const color   = avatarColor(p.name || "?");
-    const abbr    = initials(p.name || "?");
-    const skills  = (p.skills || []).slice(0, 4);
-    const more    = (p.skills || []).length - 4;
+    const card = document.createElement("div");
+    card.className = "ccard";
+    card.style.animationDelay = `${i * 0.04}s`;
 
     card.innerHTML = `
-      <div class="card-avatar" style="background:${color}">${abbr}</div>
-      <div class="card-header">
-        <div>
-          <div class="card-name">${p.name || "—"}</div>
-          <div class="card-role">${p.role || "—"} · ${p.category || "—"}</div>
-        </div>
-        <span class="open-badge">Open</span>
+      <div class="cc-top">
+        <div class="cc-avatar" style="background:${color}">${abbr}</div>
+        <span class="cc-badge">Open</span>
       </div>
-      <p class="card-bio">${p.bio || ""}</p>
-      <div class="skills-row">
-        ${skills.map(s => `<span class="skill-tag">${s}</span>`).join("")}
-        ${more > 0 ? `<span class="skill-tag">+${more} more</span>` : ""}
+      <div class="cc-name">${p.name || "—"}</div>
+      <div class="cc-role">${p.role || "—"}</div>
+      <div class="cc-skills">
+        ${skills.map(s => `<span class="cc-skill">${s}</span>`).join("")}
+        ${more > 0 ? `<span class="cc-skill">+${more}</span>` : ""}
       </div>
-      <div class="card-footer">
-        <span class="card-location">
-          <i class="fas fa-map-marker-alt"></i>
-          ${p.location || "Location not set"}
-        </span>
-        <span class="card-exp-badge">${expLabel(p.exp)}</span>
+      <div class="cc-foot">
+        <span class="cc-loc"><i class="fas fa-map-marker-alt"></i>${p.location || "—"}</span>
       </div>
     `;
 
@@ -339,21 +312,17 @@ function renderProfiles(profiles) {
   });
 }
 
+
 // ═══════════════════════════════════════════
 //   FILTERS
 // ═══════════════════════════════════════════
 window.applyFilters = function () {
-  const search = document.getElementById("searchInput").value.toLowerCase();
-  const role   = document.getElementById("roleFilter").value;
-  const exp    = document.getElementById("expFilter").value;
+  const q   = document.getElementById("searchInput").value.toLowerCase();
+  const exp = document.getElementById("expFilter").value;
 
   const filtered = allProfiles.filter(p => {
-    const haystack = [p.name, p.role, p.bio, p.qual, ...(p.skills || []), p.location]
-      .join(" ").toLowerCase();
-    const matchSearch   = !search || haystack.includes(search);
-    const matchRole     = !role || p.category === role;
-    const matchExp      = !exp  || p.exp === exp;
-    return matchSearch && matchRole && matchExp;
+    const hay = [p.name, p.role, ...(p.skills||[]), p.location].join(" ").toLowerCase();
+    return (!q || hay.includes(q)) && (!exp || p.exp === exp);
   });
 
   renderProfiles(filtered);
@@ -361,71 +330,52 @@ window.applyFilters = function () {
 
 window.clearFilters = function () {
   document.getElementById("searchInput").value = "";
-  document.getElementById("roleFilter").value  = "";
   document.getElementById("expFilter").value   = "";
   renderProfiles(allProfiles);
 };
 
+
 // ═══════════════════════════════════════════
-//   PROFILE DETAIL MODAL
+//   PROFILE MODAL
 // ═══════════════════════════════════════════
 function openProfile(p) {
   const color = avatarColor(p.name || "?");
   const abbr  = initials(p.name || "?");
 
-  const contactHtml = p.contact
-    ? `<a class="pm-contact-link" href="mailto:${p.contact}">
-         <i class="fas fa-envelope"></i> ${p.contact}
-       </a>`
-    : `<span style="color:var(--ink3);font-size:.88rem;">Not provided</span>`;
-
   const mapBtn = p.coords
-    ? `<button class="pm-location-btn" onclick="showMap('${p.coords}', '${p.name}')">
+    ? `<button class="pm-map-btn" onclick="showMap('${p.coords}','${p.name}')">
          <i class="fas fa-map-marker-alt"></i> View on Map
        </button>`
     : "";
 
-  document.getElementById("profileModalContent").innerHTML = `
-    <div class="profile-modal-inner">
+  const contactLine = p.contact
+    ? `<a class="pm-contact" href="mailto:${p.contact}">
+         <i class="fas fa-envelope"></i> ${p.contact}
+       </a>`
+    : `<span style="color:var(--text3);font-size:.85rem">Not provided</span>`;
+
+  document.getElementById("profileContent").innerHTML = `
+    <div class="pm-inner">
       <div class="pm-avatar" style="background:${color}">${abbr}</div>
       <div class="pm-name">${p.name || "—"}</div>
-      <div class="pm-role">${p.role || "—"} · <strong>${p.category || "—"}</strong></div>
-      <span class="open-badge">Open to Work</span>
+      <div class="pm-role">${p.role || "—"}</div>
+      <span class="cc-badge" style="display:inline-flex">Open to Work</span>
 
       <hr class="pm-divider">
 
-      <div class="pm-section">
-        <div class="pm-section-label">About</div>
-        <div class="pm-section-value">${p.bio || "—"}</div>
+      <div class="pm-label">Skills</div>
+      <div class="pm-chips">
+        ${(p.skills||[]).map(s => `<span class="pm-chip">${s}</span>`).join("") || '<span style="color:var(--text3)">—</span>'}
       </div>
 
-      <div class="pm-section">
-        <div class="pm-section-label">Qualifications</div>
-        <div class="pm-section-value">${p.qual || "—"}</div>
-      </div>
+      <div class="pm-label">Location</div>
+      <div class="pm-val">${p.location || "—"}</div>
+      ${mapBtn}
 
-      <div class="pm-section">
-        <div class="pm-section-label">Experience Level</div>
-        <div class="pm-section-value">${expLabel(p.exp)}</div>
-      </div>
+      <hr class="pm-divider">
 
-      <div class="pm-section">
-        <div class="pm-section-label">Skills</div>
-        <div class="pm-chips">
-          ${(p.skills || []).map(s => `<span class="pm-chip">${s}</span>`).join("")}
-        </div>
-      </div>
-
-      <div class="pm-section">
-        <div class="pm-section-label">Location</div>
-        <div class="pm-section-value">${p.location || "—"}</div>
-        ${mapBtn}
-      </div>
-
-      <div class="pm-section">
-        <div class="pm-section-label">Contact</div>
-        ${contactHtml}
-      </div>
+      <div class="pm-label">Contact</div>
+      ${contactLine}
     </div>
   `;
 
@@ -435,16 +385,16 @@ function openProfile(p) {
 window.closeProfile = function (e) {
   if (e.target === document.getElementById("profileModal")) closeProfileDirect();
 };
-
 window.closeProfileDirect = function () {
   document.getElementById("profileModal").classList.add("hidden");
 };
+
 
 // ═══════════════════════════════════════════
 //   MAP MODAL
 // ═══════════════════════════════════════════
 window.showMap = function (coords, name) {
-  document.getElementById("mapModalName").textContent = name || "Location";
+  document.getElementById("mapLabel").textContent = name || "Location";
   document.getElementById("mapFrame").src =
     `https://maps.google.com/maps?q=${coords}&z=14&output=embed`;
   document.getElementById("mapModal").classList.remove("hidden");
@@ -453,31 +403,25 @@ window.showMap = function (coords, name) {
 window.closeMap = function (e) {
   if (e.target === document.getElementById("mapModal")) closeMapDirect();
 };
-
 window.closeMapDirect = function () {
   document.getElementById("mapModal").classList.add("hidden");
   document.getElementById("mapFrame").src = "";
 };
 
+
 // ═══════════════════════════════════════════
 //   TOAST
 // ═══════════════════════════════════════════
-let toastTimer;
 function showToast(msg, type = "") {
   const t = document.getElementById("toast");
   t.textContent = msg;
-  t.className   = `toast ${type} show`;
-
+  t.className = `toast ${type} show`;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    t.classList.remove("show");
-  }, 3200);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
 }
 
-// ── Close modals with Escape key ──────────
+
+// ── Escape closes modals ───────────────────
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") {
-    closeMapDirect();
-    closeProfileDirect();
-  }
+  if (e.key === "Escape") { closeMapDirect(); closeProfileDirect(); }
 });
